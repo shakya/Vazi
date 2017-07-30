@@ -3,8 +3,11 @@ var WebSocketServer = require('websocket').server;
 var http = require('http');
 var fs = require('fs');
 var url = require('url');
-var connections = [];
+var wrappedConnections = [];
 var itr = 0;
+const STATE_ON = "on";
+const STATE_OFF = "off";
+
 var server = http.createServer(function (request, response) {
     console.log((new Date()) + ' Received request for ' + request.url);
     response.writeHead(200, {
@@ -34,7 +37,7 @@ function originIsAllowed(origin) {
 
 (function (global) {
     global.getConnections = function () {
-        return connections;
+        return wrappedConnections;
     };
 })(global);
 
@@ -49,7 +52,8 @@ wsServer.on('request', function (request) {
 
     var connection = request.accept('arduino', request.origin);
     var sid = request.remoteAddress;
-    connections[sid] = connection;
+
+    wrappedConnections[sid] = new WrappedConnection(connection, STATE_OFF);
     console.log((new Date()) + ' Connection accepted.');
 
     connection.on('message', function (message) {
@@ -70,8 +74,8 @@ wsServer.on('request', function (request) {
 
     connection.on('close', function (reasonCode, description) {
         console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
-        connections[sid] = null;
-        delete connections[sid];
+        wrappedConnections[sid] = null;
+        delete wrappedConnections[sid];
     });
 
     connection.sendUTF("Hallo Client!");
@@ -92,15 +96,25 @@ http.createServer(function (request, response) {
         response.writeHead(200, {'Content-Type': 'application/json; charset=ISO-8859-1'});
         try {
             var cons = getConnections()
-            var consStr = [];
-            var c = 0;
-            for (var key in connections) {
-                if (connections.hasOwnProperty(key)) {
-                    console.log(key, connections[key]);
-                    consStr[c++] = connections[key].remoteAddress;
+            // var consStr = [];
+            // var c = 0;
+            var jsonStr = "[";
+            var notFirst;
+            for (var key in wrappedConnections) {
+                if (wrappedConnections.hasOwnProperty(key)) {
+                    console.log(key, wrappedConnections[key]);
+                    if (notFirst) {
+                        jsonStr += ","
+                    }
+                    notFirst = true;
+                    jsonStr += "{"
+                        + "\"key\":\"" + wrappedConnections[key]._connection.remoteAddress + "\""
+                        + ",\"state\":\"" + wrappedConnections[key]._state + "\""
+                        + ",\"description\":\"" + "\"NA" + "\""
+                        + "}"
                 }
             }
-            var jsonStr = JSON.stringify(consStr);
+            jsonStr += "]"
             response.write(jsonStr);
         } catch (e) {
             console.log(e);
@@ -118,13 +132,18 @@ http.createServer(function (request, response) {
             console.log('toStatus:' + toStatus)
             console.log('key:' + key)
 
-            var conToChange = getConnections()[key];
+            var wrappedConnection = getConnections()[key];
+            var conToChange = wrappedConnection._connection;
 
-            if (toStatus == 'on' || toStatus == 'true') {
+
+            if (toStatus == STATE_ON || toStatus == 'true') {
                 conToChange.sendUTF('{"S":"1"}');
+                wrappedConnection._state = STATE_ON;
             }
             if (toStatus == 'off' || toStatus == 'false') {
                 conToChange.sendUTF('{"S":"0"}');
+                wrappedConnection._state = STATE_OFF;
+
             }
             var jsonStr = JSON.stringify('{"S":"' + toStatus + '"}');
             response.write(jsonStr);
@@ -159,31 +178,34 @@ http.createServer(function (request, response) {
 console.log('Server running at http://127.0.0.1:8081/');
 
 var buildHTML = function () {
-        var html = "<!DOCTYPE html>"
-            + " <html>"
-            + " <body>"
-            + " <h2>Devices</h2>";
-
-        for (var key in getConnections()) {
-            if (connections.hasOwnProperty(key)) {
-                html += "<label>" + key + "<input type=\'checkbox\' onclick=\'handleClick(\"" + key + "\",this);\'> </label><br/>"
-
+    var html = "<!DOCTYPE html>"
+        + " <html>"
+        + " <body>"
+        + " <h2>Devices</h2>";
+    for (var key in getConnections()) {
+        if (wrappedConnections.hasOwnProperty(key)) {
+            var checked = wrappedConnections._state == STATE_ON;
+            html += "<label>" + key + "<input type=\'checkbox\'  onclick=\'handleClick(\"" + key + "\",this);\'";
+            if (wrappedConnections[key]._state == STATE_ON) {
+                html += " checked"
             }
+            html += "> </label><br/>"
+
         }
-        html += "<script>function handleClick(key,cb) {"
-
-            + "var xhttp = new XMLHttpRequest();"
-            // + "xhttp.onreadystatechange = function() {"
-            // + " if (this.readyState == 4 && this.status == 200) {"
-            // + " document.getElementById(\"demo\").innerHTML = this.responseText;"
-            // + " }"
-            // + "};"
-            + "xhttp.open(\"GET\", \"http://127.0.0.1:8081/switch?key=\"+key+\"&status=\"+cb.checked, true);"
-            + "xhttp.send();"
-            + "}</script>"
-        " < / body > "
-        + "</html>"
-
-        return html;
     }
-;
+    html += "<script>function handleClick(key,cb) {"
+
+        + "var xhttp = new XMLHttpRequest();"
+        + "xhttp.open(\"GET\", \"http://127.0.0.1:8081/switch?key=\"+key+\"&status=\"+cb.checked, true);"
+        + "xhttp.send();"
+        + "}</script>"
+    " < / body > "
+    + "</html>"
+    return html;
+};
+
+
+var WrappedConnection = function (connection, state) {
+    this._connection = connection;
+    this._state = state;
+};
