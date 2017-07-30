@@ -78,6 +78,7 @@ wsServer.on('request', function (request) {
 });
 
 // Create a server
+
 http.createServer(function (request, response) {
     // Parse the request containing file name
     var pathname = url.parse(request.url).pathname;
@@ -119,20 +120,13 @@ http.createServer(function (request, response) {
 
             var conToChange = getConnections()[key];
 
-            if (toStatus == 'on') {
+            if (toStatus == 'on' || toStatus == 'true') {
                 conToChange.sendUTF('{"S":"1"}');
             }
-            if (toStatus == 'off') {
+            if (toStatus == 'off' || toStatus == 'false') {
                 conToChange.sendUTF('{"S":"0"}');
             }
-            // var utf8Data;
-            // conToChange.on('message', function (message) {
-            //     if (message.type === 'utf8') {
-            //         utf8Data = message.utf8Data;
-            //         console.log('Status from key ' + key + ': ' + utf8Data);
-            //     }
-            // });
-            var jsonStr = JSON.stringify('{"S":"'+toStatus+'"}');
+            var jsonStr = JSON.stringify('{"S":"' + toStatus + '"}');
             response.write(jsonStr);
         } catch (e) {
             console.log(e);
@@ -140,11 +134,22 @@ http.createServer(function (request, response) {
         response.end();
     }
 
+    function list() {
+        console.log('list');
+        response.writeHead(200, {'Content-Type': 'text/html'});
+        var html = buildHTML();
+        response.write(html);
+        response.end();
+    }
+
     if (pathname == '/getdevices') {
         getdevices();
     }
-    if (pathname == '/switch') {
+    else if (pathname == '/switch') {
         changeStatus();
+    }
+    else if (pathname == '/list') {
+        list();
     }
 
 
@@ -152,3 +157,33 @@ http.createServer(function (request, response) {
 
 // Console will print the message
 console.log('Server running at http://127.0.0.1:8081/');
+
+var buildHTML = function () {
+        var html = "<!DOCTYPE html>"
+            + " <html>"
+            + " <body>"
+            + " <h2>Devices</h2>";
+
+        for (var key in getConnections()) {
+            if (connections.hasOwnProperty(key)) {
+                html += "<label>" + key + "<input type=\'checkbox\' onclick=\'handleClick(\"" + key + "\",this);\'> </label><br/>"
+
+            }
+        }
+        html += "<script>function handleClick(key,cb) {"
+
+            + "var xhttp = new XMLHttpRequest();"
+            // + "xhttp.onreadystatechange = function() {"
+            // + " if (this.readyState == 4 && this.status == 200) {"
+            // + " document.getElementById(\"demo\").innerHTML = this.responseText;"
+            // + " }"
+            // + "};"
+            + "xhttp.open(\"GET\", \"http://127.0.0.1:8081/switch?key=\"+key+\"&status=\"+cb.checked, true);"
+            + "xhttp.send();"
+            + "}</script>"
+        " < / body > "
+        + "</html>"
+
+        return html;
+    }
+;
