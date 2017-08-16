@@ -27,7 +27,17 @@ WebSocketsClient webSocket;
 #define USE_SERIAL Serial
 
 #define MESSAGE_INTERVAL 5000
-#define HEARTBEAT_INTERVAL 2500
+#define HEARTBEAT_INTERVAL 25000
+
+/*
+Measuring Current Using ACS712
+*/
+const int analogIn = A0;
+int mVperAmp = 185; // use 100 for 20A Module and 66 for 30A Module and 185 for 5A Module
+int RawValue= 0;
+int ACSoffset = 2500;
+double Voltage = 0;
+double Amps = 0;
 
 int LED = 5;
 
@@ -36,15 +46,18 @@ uint64_t heartbeatTimestamp = 0;
 bool isConnected = false;
 String state = "0";
 
-// WiFi parameters to be configured
-//const char* ssid = "SLT-LTE-WiFi-2690";
-const char* ssid = "SLT-LTE-WiFi-2690XX";
-const char* password = "3MF8B39YGBT";
-
 void restart()
 {
   USE_SERIAL.printf("[ESP] Restarting\n");
   ESP.restart();
+}
+
+void setCurrent()
+{
+    RawValue = analogRead(analogIn);
+    Voltage = (RawValue / 1024.0) * 5000; // Gets you mV
+    Amps = ((Voltage - ACSoffset) / mVperAmp);
+    Amps = (RawValue * 0.0049 - 2.5)/0.1 ;
 }
 
 void printWSc(uint8_t * payload, size_t length)
@@ -57,15 +70,17 @@ void printWSc(uint8_t * payload, size_t length)
     {
       USE_SERIAL.print("[JSON] Data ");
       USE_SERIAL.println(s);
-      analogWrite(LED,255);
-      state = s;
+      digitalWrite(LED,HIGH);
+      setCurrent();
+      state = "Relay: " + s;
     }
     if(s == "0")
     {
       USE_SERIAL.print("[JSON] Data ");
       USE_SERIAL.println(s);
-      analogWrite(LED,0);
-      state = s;
+      digitalWrite(LED,LOW);
+      setCurrent();
+      state = "Relay: " + s;
     }
 }
 
@@ -107,12 +122,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 void setup() {
     // USE_SERIAL.begin(921600);
     USE_SERIAL.begin(115200);
-    pinMode(LED, INPUT);
-
-    digitalWrite(LED, LOW);
-    delay(1000);
-    digitalWrite(LED, HIGH);
-    delay(2000);
+    pinMode(LED, OUTPUT);
 
     //Serial.setDebugOutput(true);
     USE_SERIAL.setDebugOutput(true);
@@ -133,38 +143,22 @@ void setup() {
 
     USE_SERIAL.println(WiFi.localIP());
 
-    webSocket.beginSocketIO("192.168.8.100", 9999, "/", "arduino");
-    //webSocket.beginSocketIO("192.168.8.102", 9999);
+    webSocket.beginSocketIO("192.168.43.64", 9999, "/", "arduino");
+//    webSocket.beginSocketIO("192.168.8.102", 9999);
 
     USE_SERIAL.println("Web Socket begin...");
     //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
     webSocket.onEvent(webSocketEvent);
-
-//    digitalWrite(LED, LOW);
-//    delay(1000);
-//    digitalWrite(LED, HIGH);
-//    delay(2000);
 }
 
 void loop() {
     if(isConnected) {
         uint64_t now = millis();
-        //USE_SERIAL.printf("NOW %d...\n", now);
-
-//        if(now - messageTimestamp > MESSAGE_INTERVAL) {
-//            messageTimestamp = now;
-//            // example socket.io message with type "messageType" and JSON payload
-//            webSocket.sendTXT("message");
-//        }
         if((now - heartbeatTimestamp) > HEARTBEAT_INTERVAL) {
             heartbeatTimestamp = now;
-            // socket.io heartbeat message
-//            webSocket.sendTXT("2");
-//            delay(2000);
-//            webSocket.sendTXT("4");
-//            delay(2000);
+            state = state + " Current: " + Amps;
             webSocket.sendTXT(state);
-            delay(2000);
+            delay(500);
             USE_SERIAL.printf(".");
         }
     }
