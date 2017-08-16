@@ -293,11 +293,11 @@ var buildHTML = function () {
             html += "<div class=\"col-md-4\">" +
                 "<h2>LIGHT " + i + "</h2>" +
                 "<p>Light Key: ";
-            html += "<label>" + key + "<input type=\'checkbox\'  onclick=\'handleClick(\"" + key + "\",this);\'";
+            html += "<label class=\"switch\">" + key + "<input type=\'checkbox\'  onclick=\'handleClick(\"" + key + "\",this);\'";
             if (wrappedConnections[key]._state == STATE_ON) {
                 html += " checked"
             }
-            html += "> </label></p>"
+            html += "> <span class=\"slider round\"></span></label></p>"
             i = i + 1;
             html += "</div>"
         }
@@ -322,80 +322,131 @@ var WrappedConnection = function (connection, state) {
     this._state = state;
 };
 
-var css = "<style>" +
-    ".footer {" +
-    "  position: fixed;" +
-    "  bottom: 0px;" +
-    "  margin-top: 20px;" +
-    "  height: 50px;" +
-    "  clear:both;" +
-    "  padding-top:20px;" +
-    "} " +
-    ".swon {" +
-    "   background-image: linear-gradient(to bottom,#08ff1c 0,#0aed0d 100%);" +
-    "}" +
-    "</style>";
+var css = "<style>" 
+    + ".footer {" 
+    + "  position: fixed;" 
+    + "  bottom: 0px;" 
+    + "  margin-top: 20px;" 
+    + "  height: 50px;" 
+    + "  clear:both;" 
+    + "  padding-top:20px;" 
+    + "} " 
+    + ".swon {" 
+    + "   background-image: linear-gradient(to bottom,#08ff1c 0,#0aed0d 100%);" 
+    + "}" 
+	+ " /* The switch - the box around the slider */"
+	+ ".switch {"
+	+ "  position: relative;"
+	+ "  display: inline-block;"
+	+ "  width: 60px;"
+	+ "  height: 34px;"
+	+ "}"
+	+ "/* Hide default HTML checkbox */"
+	+ ".switch input {display:none;}"
+	+ "/* The slider */"
+	+ ".slider {"
+	+ "  position: absolute;"
+	+ "  cursor: pointer;"
+	+ "  top: 0;"
+	+ "  left: 0;"
+	+ "  right: 0;"
+	+ "  bottom: 0;"
+	+ "  background-color: #ccc;"
+	+ "  -webkit-transition: .4s;"
+	+ "  transition: .4s;"
+	+ "}"
+	+ ".slider:before {"
+	+ "  position: absolute;"
+	+ "  content: \"\";"
+	+ "  height: 26px;"
+	+ "  width: 26px;"
+	+ "  left: 4px;"
+	+ "  bottom: 4px;"
+	+ "  background-color: white;"
+	+ "  -webkit-transition: .4s;"
+	+ "  transition: .4s;"
+	+ "}"
+	+ "input:checked + .slider {"
+	+ "  background-color: #2196F3;"
+	+ "}"
+	+ "input:focus + .slider {"
+	+ "  box-shadow: 0 0 1px #2196F3;"
+	+ "}"
+	+ "input:checked + .slider:before {"
+	+ "  -webkit-transform: translateX(26px);"
+	+ "  -ms-transform: translateX(26px);"
+	+ "  transform: translateX(26px);"
+	+ "}"
+	+ "/* Rounded sliders */"
+	+ ".slider.round {"
+	+ "  border-radius: 34px;"
+	+ "}"
+	+ ".slider.round:before {"
+	+ "  border-radius: 50%;"
+	+ "} "
+    + "</style>";
 
-var header = "<!doctype html>" +
-    "<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">" +
-    "<head>" +
-    "  <meta http-equiv=\"content-type\" content=\"application/xhtml+xml; charset=UTF-8\" />" +
-    "  <meta http-equiv=\"X-UA-Compatible\" content=\"chrome=1\">" +
-    "  <meta name=\"google\" value=\"notranslate\">" +
-    "  <link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css\">" +
-    "  <link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css\">" +
-    "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css\">" +
-    "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bootstrap-switch/3.3.4/css/bootstrap3/bootstrap-switch.min.css\">" +
-    "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js\"></script>" +
-    "  <script src=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js\"></script>" +
-    "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/bootstrap-switch/3.3.4/js/bootstrap-switch.js\"></script>";
-"  <title>Vazi</title>" +
-css +
-"</head>";
+var header = "<!doctype html>" 
+    + "<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" dir=\"ltr\">"
+    + "<head>"
+    + "  <meta http-equiv=\"content-type\" content=\"application/xhtml+xml; charset=UTF-8\" />"
+    + "  <meta http-equiv=\"X-UA-Compatible\" content=\"chrome=1\">"
+    + "  <meta name=\"google\" value=\"notranslate\">"
+    + "  <link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css\">"
+    + "  <link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css\">"
+    + "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css\">"
+    + "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bootstrap-switch/3.3.4/css/bootstrap3/bootstrap-switch.min.css\">"
+    + "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js\"></script>"
+    + "  <script src=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js\"></script>"
+    + "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/bootstrap-switch/3.3.4/js/bootstrap-switch.js\"></script>"
+	+ "  <title>Vazi</title>"
+	+ css
+	+ "</head>";
 
-var nav = "<nav class=\"navbar navbar-inverse navbar-fixed-top\">" +
-    "    <div class=\"container\">" +
-    "      <div class=\"navbar-header\">" +
-    "        <button type=\"button\" class=\"navbar-toggle collapsed\" data-toggle=\"collapse\" data-target=\"#navbar\" aria-expanded=\"false\" aria-controls=\"navbar\">" +
-    "          <span class=\"sr-only\">Toggle navigation</span>" +
-    "          <span class=\"icon-bar\"></span>" +
-    "          <span class=\"icon-bar\"></span>" +
-    "          <span class=\"icon-bar\"></span>" +
-    "        </button>" +
-    "        <a class=\"navbar-brand\" href=\"#\">Vazi Holms</a>" +
-    "      </div>" +
-    "      <div id=\"navbar\" class=\"navbar-collapse collapse\">" +
-    "        <form class=\"navbar-form navbar-right\">" +
-    "          <div class=\"form-group\">" +
-    "            <!-- <input type=\"text\" placeholder=\"Email\" class=\"form-control\"> -->" +
-    "          </div>" +
-    "          <div class=\"form-group\">" +
-    "            <!-- <input type=\"password\" placeholder=\"Password\" class=\"form-control\"> -->" +
-    "          </div>" +
-    "          <!-- <button type=\"submit\" class=\"btn btn-success\">Sign in</button> -->" +
-    "        </form>" +
-    "      </div>" +
-    "    </div>" +
-    "  </nav>";
+var nav = "<nav class=\"navbar navbar-inverse navbar-fixed-top\">" 
+    + "    <div class=\"container\">" 
+    + "      <div class=\"navbar-header\">" 
+    + "        <button type=\"button\" class=\"navbar-toggle collapsed\" data-toggle=\"collapse\" data-target=\"#navbar\" aria-expanded=\"false\" aria-controls=\"navbar\">" 
+    + "          <span class=\"sr-only\">Toggle navigation</span>" 
+    + "          <span class=\"icon-bar\"></span>" 
+    + "          <span class=\"icon-bar\"></span>" 
+    + "          <span class=\"icon-bar\"></span>" 
+    + "        </button>" 
+    + "        <a class=\"navbar-brand\" href=\"#\">Vazi Holms</a>" 
+    + "      </div>" 
+    + "      <div id=\"navbar\" class=\"navbar-collapse collapse\">" 
+    + "        <form class=\"navbar-form navbar-right\">" 
+    + "          <div class=\"form-group\">" 
+    + "            <!-- <input type=\"text\" placeholder=\"Email\" class=\"form-control\"> -->" 
+    + "          </div>" 
+    + "          <div class=\"form-group\">" 
+    + "            <!-- <input type=\"password\" placeholder=\"Password\" class=\"form-control\"> -->" 
+    + "          </div>" 
+    + "          <!-- <button type=\"submit\" class=\"btn btn-success\">Sign in</button> -->" 
+    + "        </form>" 
+    + "      </div>" 
+    + "    </div>" 
+    + "  </nav>";
+	
+var desc = "<div class=\"jumbotron\">" 
+    + "    <div class=\"container\">" 
+    + "      <h1>Hello, </h1>" 
+    + "      <p>" 
+    + "        This is a simple example of displaying vazi intigrated home appliances in a web application." 
+    + "      </p>" 
+    + "      <!-- <p><a class=\"btn btn-primary btn-lg\" href=\"#\" role=\"button\">Learn more &raquo;</a></p> -->" 
+    + "    </div>" 
+    + "  </div>";
 
-var desc = "<div class=\"jumbotron\">" +
-    "    <div class=\"container\">" +
-    "      <h1>Hello, </h1>" +
-    "      <p>" +
-    "        This is a simple example of displaying vazi intigrated home appliances in a web application." +
-    "      </p>" +
-    "      <!-- <p><a class=\"btn btn-primary btn-lg\" href=\"#\" role=\"button\">Learn more &raquo;</a></p> -->" +
-    "    </div>" +
-    "  </div>";
-
-var footer = "<hr>" +
-    "    <footer  class=\"footer\">" +
-    "      <p>&copy; Vazi holmes 2017</p>" +
-    "    </footer>" +
-    "  </div> <!-- /container -->" +
-    "</body>" +
-    "</html>";
-
+var footer = "<hr>" 
+    + "    <footer  class=\"footer\">" 
+    + "      <p>&copy; Vazi holmes 2017</p>" 
+    + "    </footer>" 
+    + "  </div> <!-- /container -->" 
+    + "</body>" 
+    + "</html>";
+	
+	
 function authenticateUserWithUsernameAndPasswordFunction(username, password) {
     const sql = 'SELECT * from USER where USERNAME = ' + dbConnecion.escape(username) + ' AND PASSWORD=' + dbConnecion.escape(password);
     console.log(sql)
