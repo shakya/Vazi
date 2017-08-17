@@ -53,18 +53,21 @@ wsServer.on('request', function (request) {
     var connection = request.accept('arduino', request.origin);
     var sid = request.remoteAddress;
 
-    wrappedConnections[sid] = new WrappedConnection(connection, STATE_OFF);//todo change
+    // wrappedConnections[sid] = new WrappedConnection(connection, STATE_OFF);/
     console.log((new Date()) + ' Connection accepted.');
 
     connection.on('message', function (message) {
         if (message.type === 'utf8') {
             console.log((new Date()).toLocaleString() + " " + connection.remoteAddress + ' Status: ' + message.utf8Data);
-            // if (message.utf8Data == "0") {
-            //     connection.sendUTF('{"S":"1"}');
-            // }
-            // if (message.utf8Data == "1") {
-            //     connection.sendUTF('{"S":"0"}');
-            // }
+            var obj = JSON.parse(message.utf8Data);
+            if (obj.MT == "WC") {
+                var st = obj.current > 0 ? STATE_ON : STATE_OFF;
+                const wrappedConnection = new WrappedConnection(obj.deviceID, connection, st, obj.key, obj.dType, obj.description);
+                wrappedConnections[obj.deviceID] = wrappedConnection;
+            }
+            else if (obj.MT == "ST") {
+                wrappedConnections[obj.key].state = obj.current > 0 ? STATE_ON : STATE_OFF;
+            }
         }
         else if (message.type === 'binary') {
             console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
@@ -96,25 +99,26 @@ http.createServer(function (request, response) {
         console.log('getdevices')
 
         dbConnecion.query('SELECT * from DEVICE', function (err, rows, fields) {
-            console.log("Result: " + rows);
+            console.log("Result rows from : " + rows.length);
 
             if (!err) {
-                console.log('The solution is: ', rows);
+                // console.log('The solution is: ', rows);
                 response.writeHead(200, {'Content-Type': 'application/json; charset=ISO-8859-1'});
                 try {
                     var jsonStr = "[";
                     var notFirst;
                     for (var key in rows) {
                         if (rows.hasOwnProperty(key)) {
-                            console.log(key, rows[key]);
+                            // console.log(key, rows[key]);
                             if (notFirst) {
                                 jsonStr += ","
                             }
                             notFirst = true;
+                            const deviceid = rows[key].DEVICE_ID;
                             jsonStr += "{"
-                                + "\"deviceID\":\"" + rows[key].DEVICE_ID + "\""
+                                + "\"deviceID\":\"" + deviceid + "\""
                                 + ",\"key\":\"" + rows[key].DEVICE_KEY + "\""
-                                + ",\"state\":\"" + (wrappedConnections[key] != null ? wrappedConnections[key]._state : STATE_OFF) + "\""
+                                + ",\"state\":\"" + (wrappedConnections[deviceid] != null ? wrappedConnections[deviceid]._state : STATE_OFF) + "\""
                                 + ",\"connected\":\"" + rows[key].IS_ACTIVE + "\""
                                 + ",\"type\":\"bulb\""
                                 + ",\"description\":\"" + rows[key].DESCTIPTION + "\""
@@ -144,26 +148,20 @@ http.createServer(function (request, response) {
             // var c = 0;
             var jsonStr = "[";
             var notFirst;
-            for (var key in wrappedConnections) {
-                if (wrappedConnections.hasOwnProperty(key)) {
-                    console.log(key, wrappedConnections[key]);
+            for (var deviceID in wrappedConnections) {
+                if (wrappedConnections.hasOwnProperty(deviceID)) {
+                    // console.log(deviceID, wrappedConnections[deviceID]);
                     if (notFirst) {
                         jsonStr += ","
                     }
                     notFirst = true;
-                    // jsonStr += "{"
-                    //     + "\"key\":\"" + wrappedConnections[key]._connection.remoteAddress + "\""
-                    //     + ",\"state\":\"" + wrappedConnections[key]._state + "\""
-                    //     + ",\"description\":\"" + "\"NA" + "\""
-                    //     + "}"
-
                     jsonStr += "{"
-                        + "\"deviceID\":\"" + key + "\""
-                        + ",\"key\":\"" + wrappedConnections[key]._deviceKey + "\""
-                        + ",\"state\":\"" + wrappedConnections[key]._state + "\""
+                        + "\"deviceID\":\"" + deviceID + "\""
+                        + ",\"key\":\"" + wrappedConnections[deviceID]._deviceKey + "\""
+                        + ",\"state\":\"" + wrappedConnections[deviceID]._state + "\""
                         + ",\"connected\":\"1\""
-                        + ",\"type\":\"" + wrappedConnections[key]._type + "\""
-                        + ",\"description\":\"" + rows[key]._description + "\""
+                        + ",\"type\":\"" + wrappedConnections[deviceID]._type + "\""
+                        + ",\"description\":\"" + wrappedConnections[deviceID]._description + "\""
                         + "}"
                 }
             }
@@ -283,14 +281,16 @@ var buildHTML = function () {
     for (var key in getConnections()) {
         if (wrappedConnections.hasOwnProperty(key)) {
             var checked = wrappedConnections._state == STATE_ON;
+            var des = wrappedConnections[key]._description;
             html += "<div class=\"col-md-4\">" +
                 "<h2>LIGHT " + i + "</h2>" +
-                "<p>Light Key: ";
-            html += "<label class=\"switch\">" + key + "<input type=\'checkbox\'  onclick=\'handleClick(\"" + key + "\",this);\'";
+                "<table><tbody><tr><td style=\"vertical-align: middle;font-size: 25px;padding: 0px 10px 11px 0px;\">";
+            html += des + ":</td><td>";
+            html += "<label class=\"switch\"><input type=\'checkbox\'  onclick=\'handleClick(\"" + key + "\",this);\'";
             if (wrappedConnections[key]._state == STATE_ON) {
                 html += " checked"
             }
-            html += "> <span class=\"slider round\"></span></label></p>"
+            html += "> <span class=\"slider round\"></span></label></td></tr></tbody></table>"
             i = i + 1;
             html += "</div>"
         }
@@ -339,14 +339,14 @@ var WrappedConnection = function (key, connection, state, deviceKey, type, descr
     this._key = key;
 };
 
-var WrappedConnection = function (connection, state) {
-    this._connection = connection;
-    this._state = state;
-    this._deviceKey = "-1";
-    this._type = "bulb";
-    this._description = "Living room light";
-    this._key = "LIVING_ROOM";
-};
+// var WrappedConnection = function (connection, state) {
+//     this._connection = connection;
+//     this._state = state;
+//     this._deviceKey = "-1";
+//     this._type = "bulb";
+//     this._description = "Living room light";
+//     this._key = "LIVING_ROOM";
+// };
 
 var css = "<style>"
     + ".footer {"

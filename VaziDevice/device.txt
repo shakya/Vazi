@@ -45,6 +45,11 @@ bool isConnected = false;
 String state = "0";
 String stateJSON = "";
 
+String deviceID = "1";
+String key = "LIVING_ROOM";
+String dType = "Bulb";
+String description = "Living room light";
+
 void restart()
 {
     USE_SERIAL.printf("[ESP] Restarting\n");
@@ -89,7 +94,7 @@ void printWSc(uint8_t * payload, size_t length)
         USE_SERIAL.println(s);
         digitalWrite(LED,HIGH);
         setCurrent();
-        state = "Relay: " + s;
+        state = s;
     }
     if(s == "0")
     {
@@ -97,7 +102,7 @@ void printWSc(uint8_t * payload, size_t length)
         USE_SERIAL.println(s);
         digitalWrite(LED,LOW);
         setCurrent();
-        state = "Relay: " + s;
+        state = s;
     }
 }
 
@@ -116,14 +121,15 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
         // send message to server when Connected
         // socket.io upgrade confirmation message (required)
-        //webSocket.sendTXT("5");
+        String jsonStr = "{\"MT\":\"WC\", \"deviceID\":\"" + deviceID + "\",\"key\":\"" +key + "\",\"state\": \"" + state + "\", \"current\": " + current + ",\"type\":\"" + dType + "\",\"description\":\"" + description + "\"}";
+        webSocket.sendTXT(jsonStr);
     }
     break;
     case WStype_TEXT:
 
         printWSc(payload,length);
         // send message to server
-        webSocket.sendTXT(state);
+        // webSocket.sendTXT(state);
         break;
     case WStype_BIN:
         USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
@@ -173,8 +179,8 @@ void loop() {
         uint64_t now = millis();
         if((now - heartbeatTimestamp) > HEARTBEAT_INTERVAL) {
             heartbeatTimestamp = now;
-            //stateJSON = "{ \"State\": \"" + state + "\", \"Current\": \"" + current + "\"}";
-            stateJSON = state + "," + current;
+            stateJSON = "{ \"MT\":\"ST\", \"key\":\"" +deviceID + "\", \"S\": \"" + state + "\", \"C\": " + current + "}";
+            //stateJSON = state + "," + current;
             webSocket.sendTXT(stateJSON);
             delay(500);
             USE_SERIAL.printf(".");
