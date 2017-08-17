@@ -182,9 +182,9 @@ void loop() {
             stateJSON = "{ \"MT\":\"ST\", \"key\":\"" +deviceID + "\", \"S\": \"" + state + "\", \"C\": " + current + "}";
             //stateJSON = state + "," + current;
             webSocket.sendTXT(stateJSON);
-            delay(500);
             USE_SERIAL.printf(".");
         }
+        delay(100);
     }
     webSocket.loop();
 }
